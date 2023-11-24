@@ -1,7 +1,12 @@
-datasets
-transformers
+torch>=2.0.0
+datasets>=2.15.0
+transformers>=4.35.0
+accelerate
 peft
 trl
-numpy
+bitsandbytes
 scipy
-torch
+
+# for flash attention 2
+packaging
+ninja

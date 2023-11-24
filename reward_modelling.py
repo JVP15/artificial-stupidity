@@ -13,6 +13,8 @@ from peft import LoraConfig, TaskType, get_peft_model
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, BitsAndBytesConfig
 from trl import RewardTrainer, RewardConfig
 
+torch.backends.cuda.matmul.allow_tf32 = True
+
 # when weights are negative, we subtract the score from the highest score
 COLUMN_WEIGHTS = {'correctness': -2, 'coherence': 1, 'helpfulness': -1}
 
@@ -117,7 +119,7 @@ def main():
                                 remove_columns=['prompt', 'response', 'helpfulness', 'complexity', 'verbosity', 'coherence', 'correctness'])
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.pad_token_id = tokenizer.eos_token_id # need to tell the tokenizer what the pad token is...
 
     tokenized_dataset = dataset_pairs.map(tokenize_fn, batched=True, batch_size=100, num_proc=16,
                                           fn_kwargs={'tokenizer': tokenizer},
@@ -131,6 +133,8 @@ def main():
     )
 
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, quantization_config=nf4_config, use_flash_attention_2=True)
+    model.config.pad_token_id = tokenizer.eos_token_id # ...also need to tell the model what the pad token is
+
     peft_config = LoraConfig(
         task_type=TaskType.SEQ_CLS,
         inference_mode=False,
@@ -138,24 +142,21 @@ def main():
         lora_alpha=32,
         lora_dropout=0.1,
     )
-    #
-    # model = get_peft_model(model, peft_config)
-    # model.print_trainable_parameters()
 
     training_args = RewardConfig(
         output_dir='logs/reward',
+        num_train_epochs=1,
         per_device_train_batch_size=1,
         gradient_accumulation_steps=8,
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={'use_reentrant': False},
-        num_train_epochs=1,
+        torch_compile=True,
+        fp16=True,
+        max_length=4092,
         logging_strategy='steps',
         logging_steps=50,
-        fp16=True,
         report_to='none',
-        max_length=4092,
         remove_unused_columns=False,
-        torch_compile=True,
     )
 
     trainer = RewardTrainer(
