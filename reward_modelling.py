@@ -6,10 +6,11 @@ It will be used for experimentation, so we can test different ways to rank two i
 combinations of helpfulness, correctness, coherence, complexity, and verbosity, with different weights for each.
 '''
 import random
+import argparse
 
 import datasets
 import torch
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, TaskType
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, BitsAndBytesConfig
 from trl import RewardTrainer, RewardConfig
 
@@ -110,9 +111,9 @@ def tokenize_fn(examples, tokenizer):
             'attention_mask_chosen': chosen_tokenized['attention_mask'], 'attention_mask_rejected': rejected_tokenized['attention_mask'],
             'margin': examples['margin']}
 
-def main():
+def main(args):
     # load the dataset
-    dataset = datasets.load_dataset('nvidia/HelpSteer', split='train').select(range(3000))
+    dataset = datasets.load_dataset('nvidia/HelpSteer', split='train').select(range(args.num_examples))
 
     dataset_pairs = dataset.map(generate_pairs, batched=True, batch_size=100, num_proc=8,
                                 fn_kwargs={'dataset': dataset},
@@ -146,8 +147,8 @@ def main():
     training_args = RewardConfig(
         output_dir='logs/reward',
         num_train_epochs=1,
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=8,
+        per_device_train_batch_size=args.batch_size,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={'use_reentrant': False},
         torch_compile=True,
@@ -172,4 +173,11 @@ def main():
     trainer.save_model('models/reward')
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Train a reward model for Mistral Instruct')
+    parser.add_argument('--num_examples', type=int, default=1000, help='Number of training examples to use')
+    parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=16, help='Gradient accumulation steps')
+
+    args = parser.parse_args()
+
     main()

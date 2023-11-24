@@ -19,8 +19,9 @@ I'll start by taking Mistral-7b Instruct (which is one of the capable 7b models)
 To install the requirements (Huggingface packages, Pytorch GPU, Flash Attention 2), run:
 
 ``
-pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu118
-pip install flash-attn --no-build-requirements
+pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt
+pip install flash-attn --no-build-isolation
 ``
 
 I've tested this on a Linux and on WSL 2 (running on Windows 10). Due to Flash Attention 2, BitsAndBytes, and Pytorch compile, you will have a hard time getting it to run on Windows natively so I wouldn't recommend trying. 
