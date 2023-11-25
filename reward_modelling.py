@@ -109,8 +109,8 @@ def tokenize_fn(examples, tokenizer):
     rejected_tokenized = tokenizer(rejected_text, truncation=True, max_length=MODEL_MAX_LENGTH)
 
     return {'input_ids_chosen': chosen_tokenized['input_ids'], 'input_ids_rejected': rejected_tokenized['input_ids'],
-            'attention_mask_chosen': chosen_tokenized['attention_mask'], 'attention_mask_rejected': rejected_tokenized['attention_mask'], }
-            #'margin': examples['margin']} # there's a weird bug when the margin is included and the model is batched, so we'll just ignore it (how exactly does margin get factored in anyways? questions for lateR)
+            'attention_mask_chosen': chosen_tokenized['attention_mask'], 'attention_mask_rejected': rejected_tokenized['attention_mask'],
+            'margin': examples['margin']}
 
 def main(args):
     # load the dataset
@@ -150,15 +150,16 @@ def main(args):
         num_train_epochs=1,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        gradient_checkpointing=True,
+        gradient_checkpointing=args.gradient_checkpointing,
         gradient_checkpointing_kwargs={'use_reentrant': False},
-        torch_compile=True,
+        #torch_compile=True, # with no extra args, compiling seems to be slower on an A100???
         fp16=True,
         max_length=MODEL_MAX_LENGTH,
         logging_strategy='steps',
         logging_steps=50,
         report_to='none',
         remove_unused_columns=False,
+        #dataloader_num_workers=12,
     )
 
     trainer = RewardTrainer(
@@ -178,6 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--num-examples', type=int, default=1000, help='Number of training examples to use')
     parser.add_argument('--batch-size', type=int, default=1, help='Batch size')
     parser.add_argument('--gradient-accumulation-steps', type=int, default=16, help='Gradient accumulation steps')
+    parser.add_argument('--gradient-checkpointing', action='store_true', help='Use gradient checkpointing')
 
     args = parser.parse_args()
 
