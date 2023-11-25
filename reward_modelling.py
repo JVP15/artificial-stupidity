@@ -23,6 +23,7 @@ HIGHEST_SCORE = 4
 PAIRS_PER_ELEMENT = 2
 
 MODEL_NAME = 'mistralai/Mistral-7B-Instruct-v0.1'
+MODEL_MAX_LENGTH = 4092
 
 def dict_to_list(dict_of_lists):
     """Converts a dictionary of lists to a list of dictionaries (b/c it's easier to work with in datasets.map)"""
@@ -104,12 +105,12 @@ def tokenize_fn(examples, tokenizer):
         rejected_text.append(line['prompt'] + ' ' + line['response'])
 
     # tokenize
-    chosen_tokenized = tokenizer(chosen_text)
-    rejected_tokenized = tokenizer(rejected_text)
+    chosen_tokenized = tokenizer(chosen_text, truncation=True, max_length=MODEL_MAX_LENGTH)
+    rejected_tokenized = tokenizer(rejected_text, truncation=True, max_length=MODEL_MAX_LENGTH)
 
     return {'input_ids_chosen': chosen_tokenized['input_ids'], 'input_ids_rejected': rejected_tokenized['input_ids'],
-            'attention_mask_chosen': chosen_tokenized['attention_mask'], 'attention_mask_rejected': rejected_tokenized['attention_mask'],
-            'margin': examples['margin']}
+            'attention_mask_chosen': chosen_tokenized['attention_mask'], 'attention_mask_rejected': rejected_tokenized['attention_mask'], }
+            #'margin': examples['margin']} # there's a weird bug when the margin is included and the model is batched, so we'll just ignore it (how exactly does margin get factored in anyways? questions for lateR)
 
 def main(args):
     # load the dataset
@@ -153,7 +154,7 @@ def main(args):
         gradient_checkpointing_kwargs={'use_reentrant': False},
         torch_compile=True,
         fp16=True,
-        max_length=4092,
+        max_length=MODEL_MAX_LENGTH,
         logging_strategy='steps',
         logging_steps=50,
         report_to='none',
@@ -174,10 +175,10 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a reward model for Mistral Instruct')
-    parser.add_argument('--num_examples', type=int, default=1000, help='Number of training examples to use')
-    parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=16, help='Gradient accumulation steps')
+    parser.add_argument('--num-examples', type=int, default=1000, help='Number of training examples to use')
+    parser.add_argument('--batch-size', type=int, default=1, help='Batch size')
+    parser.add_argument('--gradient-accumulation-steps', type=int, default=16, help='Gradient accumulation steps')
 
     args = parser.parse_args()
 
-    main()
+    main(args)

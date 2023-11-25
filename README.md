@@ -19,9 +19,16 @@ I'll start by taking Mistral-7b Instruct (which is one of the capable 7b models)
 To install the requirements (Huggingface packages, Pytorch GPU, Flash Attention 2), run:
 
 ``
-pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cu118
-pip install -r requirements.txt
+pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cu118 &&
+pip install -r requirements.txt &&
 pip install flash-attn --no-build-isolation
 ``
 
 I've tested this on a Linux and on WSL 2 (running on Windows 10). Due to Flash Attention 2, BitsAndBytes, and Pytorch compile, you will have a hard time getting it to run on Windows natively so I wouldn't recommend trying. 
+
+### Running on Google Cloud
+
+I like to run large runs with heavy GPU usage on Google Cloud, but there are a few issues that you may run into when doing so. 
+
+1. In version .41 and below, BitsAndBytes has a bug running on a Google Cloud VM. This [PR](https://github.com/TimDettmers/bitsandbytes/pull/715) has the solution to the problem (basically make a one-line change in `bitsandbytes/cuda_setup/env_vars.py`) so follow it if you run into issues.
+2. During `torch.compile`, you may see an error like `FileNotFoundError: [Errno 2] No such file or directory: 'ldconfig'`. The solution, according to [here](https://discuss.pytorch.org/t/dynamo-exceptions-with-distributeddataprallel-compile/186768) is to add `/sbin` to your path. I did it in my `.bashrc` file with `export PATH="/sbin:$PATH"`
