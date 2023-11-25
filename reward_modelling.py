@@ -13,6 +13,7 @@ import torch
 from peft import LoraConfig, TaskType
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, BitsAndBytesConfig
 from trl import RewardTrainer, RewardConfig
+from accelerate import Accelerator
 
 torch.backends.cuda.matmul.allow_tf32 = True
 
@@ -134,7 +135,11 @@ def main(args):
         bnb_4bit_compute_dtype=torch.float16
     )
 
-    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, quantization_config=nf4_config, use_flash_attention_2=True)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        MODEL_NAME, num_labels=1, device_map={'': Accelerator().local_process_index},
+        quantization_config=nf4_config, use_flash_attention_2=True
+    )
+
     model.config.pad_token_id = tokenizer.eos_token_id # ...also need to tell the model what the pad token is
 
     peft_config = LoraConfig(
