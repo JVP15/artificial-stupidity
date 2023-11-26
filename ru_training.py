@@ -26,7 +26,7 @@ from accelerate import Accelerator
 from datasets import load_dataset
 from peft import LoraConfig
 from tqdm import tqdm
-from transformers import Adafactor, AutoTokenizer, HfArgumentParser, pipeline
+from transformers import Adafactor, AutoTokenizer, HfArgumentParser, pipeline, BitsAndBytesConfig
 
 from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer, set_seed
 from trl.core import LengthSampler
@@ -193,9 +193,17 @@ lora_config = LoraConfig(
     bias="none",
     task_type="CAUSAL_LM",
 )
+
+nf4_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    # bnb_4bit_use_double_quant=True,
+    bnb_4bit_compute_dtype=torch.float16
+)
+
 model = AutoModelForCausalLMWithValueHead.from_pretrained(
     config.model_name,
-    load_in_8bit=True,
+    quantization_config=nf4_config,
     device_map={"": current_device},
     peft_config=lora_config,
     use_flash_attention_2=script_args.use_flash_attention_2,
@@ -235,10 +243,13 @@ sentiment_pipe = pipeline(
     "sentiment-analysis",
     model=reward_model_name,
     device_map={"": current_device},
-    model_kwargs={"load_in_8bit": True, "use_flash_attention_2": script_args.use_flash_attention_2},
+    model_kwargs={"quantization_config": nf4_config, "use_flash_attention_2": script_args.use_flash_attention_2},
     tokenizer=tokenizer,
     return_token_type_ids=False,
 )
+
+# add the padding token to the model config (if needed)
+sentiment_pipe.model.config.pad_token_id = tokenizer.pad_token_id
 
 # We then define the arguments to pass to the `generate` function. These arguments
 # are passed to the `generate` function of the PPOTrainer, which is a wrapper around

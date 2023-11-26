@@ -38,7 +38,11 @@ Note that the `--batch-size` argument is per device. When running with 4-bit wei
 ## RUHF
 
 ```bash
-accelerate launch ru_training.py --model_name=mistralai/Mistral-7B-Instruct-v0.1 --reward_model_name=models/reward --tokenizer_name=mistralai/Mistral-7B-Instruct-v0.1 --batched_gen=True --output_dir=models/ruhf 
+accelerate launch ru_training.py --model_name=mistralai/Mistral-7B-Instruct-v0.1 \
+  --reward_model_name=models/reward \
+  --tokenizer_name=mistralai/Mistral-7B-Instruct-v0.1 \
+  --batched_gen=True --output_dir=models/ruhf \
+  --num_samples=1000 /
 ```
 ## Installation
 
