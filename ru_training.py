@@ -48,6 +48,7 @@ class ScriptArguments:
     reward_model_name: Optional[str] = field(default="", metadata={"help": "the reward model name"})
     use_flash_attention_2: Optional[bool] = field(default=False, metadata={"help": "whether to use flash attention 2"})
     log_with: Optional[str] = field(default=None, metadata={"help": "use 'wandb' to log with wandb"})
+    num_samples: Optional[int] = field(default=None, metadata={"help": "the number of samples from the dataset to use"})
     learning_rate: Optional[float] = field(default=1.41e-5, metadata={"help": "the learning rate"})
     output_max_length: Optional[int] = field(default=128, metadata={"help": "maximum length for generation"})
     mini_batch_size: Optional[int] = field(default=1, metadata={"help": "the PPO minibatch size"})
@@ -97,8 +98,11 @@ config = PPOConfig(
     adap_kl_ctrl=script_args.adap_kl_ctrl,
 )
 
-train_dataset = load_dataset("lvwerra/stack-exchange-paired", data_dir="data/rl", split="train")
-train_dataset = train_dataset.select(range(100000))
+train_dataset = load_dataset(dataset_name, split="train")
+
+if script_args.num_samples:
+    train_dataset = train_dataset.select(range(script_args.num_samples))
+
 original_columns = train_dataset.column_names
 
 # We then define the arguments to pass to the sentiment analysis pipeline.
@@ -111,8 +115,6 @@ sent_kwargs = {
 }
 
 tokenizer = AutoTokenizer.from_pretrained(script_args.tokenizer_name)
-# GPT-2 tokenizer has a pad token, but it is not eos_token by default. We need to set it to eos_token.
-# only for this model.
 
 if getattr(tokenizer, "pad_token", None) is None:
     tokenizer.pad_token = tokenizer.eos_token
@@ -145,8 +147,14 @@ def build_dataset(
             "query": [],
             "input_ids": [],
         }
-        for question in examples["question"]:
-            query = "Question: " + question + "\n\nAnswer: "
+        # for question in examples["question"]:
+        #     query = "Question: " + question + "\n\nAnswer: "
+        #     tokenized_question = tokenizer(query, truncation=True)
+        #     new_examples["query"].append(query)
+        #     new_examples["input_ids"].append(tokenized_question["input_ids"])
+
+        for prompt in examples["prompt"]:
+            query = prompt + " "
             tokenized_question = tokenizer(query, truncation=True)
             new_examples["query"].append(query)
             new_examples["input_ids"].append(tokenized_question["input_ids"])
@@ -192,6 +200,10 @@ model = AutoModelForCausalLMWithValueHead.from_pretrained(
     peft_config=lora_config,
     use_flash_attention_2=script_args.use_flash_attention_2,
 )
+
+# add the padding token to the model config (if needed)
+if getattr(model.config, "pad_token_id", None) is None:
+    model.config.pad_token_id = tokenizer.pad_token_id
 
 optimizer = None
 if script_args.adafactor:

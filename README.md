@@ -35,6 +35,11 @@ accelerate launch reward_modelling.py --num-examples 1000 --batch-size 1 --gradi
 
 Note that the `--batch-size` argument is per device. When running with 4-bit weights and a batch size of 1, the model takes approximately 20GB of VRAM, and I can train it on an RTX 4090 (although it'll take a while).
 
+## RUHF
+
+```bash
+accelerate launch ru_training.py --model_name=mistralai/Mistral-7B-Instruct-v0.1 --reward_model_name=models/reward --tokenizer_name=mistralai/Mistral-7B-Instruct-v0.1 --batched_gen=True --output_dir=models/ruhf 
+```
 ## Installation
 
 To install the requirements (Huggingface packages, Pytorch GPU, Flash Attention 2), run:

@@ -148,6 +148,7 @@ def main(args):
         r=8,
         lora_alpha=32,
         lora_dropout=0.1,
+        modules_to_save=['score'], # need to make sure the score head is also trained
     )
 
     training_args = RewardConfig(
@@ -182,7 +183,7 @@ def main(args):
 
     # evaluate the model on the test set
 
-    test_dataset = datasets.load_dataset('nvidia/HelpSteer', split='test')
+    test_dataset = datasets.load_dataset('nvidia/HelpSteer', split='validation')
     test_dataset_pairs = test_dataset.map(generate_pairs, batched=True, batch_size=100, num_proc=8,
                                 fn_kwargs={'dataset': test_dataset},
                                 remove_columns=['prompt', 'response', 'helpfulness', 'complexity', 'verbosity', 'coherence', 'correctness'])
