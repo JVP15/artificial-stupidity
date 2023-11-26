@@ -115,7 +115,7 @@ def tokenize_fn(examples, tokenizer):
 
 def main(args):
     # load the dataset
-    dataset = datasets.load_dataset('nvidia/HelpSteer', split='train').select(range(args.num_examples))
+    dataset = datasets.load_dataset('nvidia/HelpSteer', split='train').shuffle().select(range(args.num_examples))
 
     dataset_pairs = dataset.map(generate_pairs, batched=True, batch_size=100, num_proc=8,
                                 fn_kwargs={'dataset': dataset},
@@ -157,14 +157,15 @@ def main(args):
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         gradient_checkpointing=args.gradient_checkpointing,
         gradient_checkpointing_kwargs={'use_reentrant': False},
-        #torch_compile=True, # with no extra args, compiling seems to be slower on an A100???
+        torch_compile=args.torch_compile, # with no extra args, compiling seems to be slower on an A100???
         fp16=True,
         max_length=MODEL_MAX_LENGTH,
         logging_strategy='steps',
         logging_steps=50,
+        save_strategy='no',
         report_to='none',
         remove_unused_columns=False,
-        #dataloader_num_workers=12,
+        dataloader_num_workers=args.num_workers,
     )
 
     trainer = RewardTrainer(
@@ -179,12 +180,28 @@ def main(args):
 
     trainer.save_model('models/reward')
 
+    # evaluate the model on the test set
+
+    test_dataset = datasets.load_dataset('nvidia/HelpSteer', split='test')
+    test_dataset_pairs = test_dataset.map(generate_pairs, batched=True, batch_size=100, num_proc=8,
+                                fn_kwargs={'dataset': test_dataset},
+                                remove_columns=['prompt', 'response', 'helpfulness', 'complexity', 'verbosity', 'coherence', 'correctness'])
+
+    test_tokenized_dataset = test_dataset_pairs.map(tokenize_fn, batched=True, batch_size=100, num_proc=16,
+                                          fn_kwargs={'tokenizer': tokenizer},
+                                          remove_columns=['chosen', 'rejected'])
+
+    trainer.evaluate(test_tokenized_dataset)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a reward model for Mistral Instruct')
     parser.add_argument('--num-examples', type=int, default=1000, help='Number of training examples to use')
     parser.add_argument('--batch-size', type=int, default=1, help='Batch size')
     parser.add_argument('--gradient-accumulation-steps', type=int, default=16, help='Gradient accumulation steps')
     parser.add_argument('--gradient-checkpointing', action='store_true', help='Use gradient checkpointing')
+    parser.add_argument('--num-workers', type=int, default=12, help='Number of data workers for the dataloader')
+    parser.add_argument('--torch-compile', action='store_true', help='Use torch compile')
 
     args = parser.parse_args()
 
