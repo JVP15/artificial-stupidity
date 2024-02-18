@@ -42,16 +42,53 @@ accelerate launch ru_training.py --model_name=mistralai/Mistral-7B-Instruct-v0.1
   --reward_model_name=models/reward \
   --tokenizer_name=mistralai/Mistral-7B-Instruct-v0.1 \
   --batched_gen=True --output_dir=models/ruhf \
-  --num_samples=1000 /
+  --num_samples=1000
 ```
+
+## DPO
+Run on Google Cloud A100 (make sure to log into Wandb)
+```bash
+python examples/scripts/dpo.py \
+    --model_name_or_path=unslosh/zephyr-sft-bnb-4bit \
+    --num-epochs 3 \
+    --logging_steps 100 \
+    --per_device_train_batch_size 4 \
+    --gradient-accumulation-steps 8 \
+    --evaluation_strategy epoch \
+    --output_dir="dpo_anthropic_hh" \
+    --optim adamw_8bit \
+    --warmup_ratio .1 \
+    --bf16 \
+    --max-length 1024 \
+    --max-prompt-length 512 \
+    --remove_unused_columns false \
+    --report_to wandb
+```
+install 
+
+```bash
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+
+conda install xformers -c xformers -y
+
+pip install bitsandbytes
+
+pip install "unsloth[conda] @ git+https://github.com/unslothai/unsloth.git"
+```
+
+
 ## Installation
 
 To install the requirements (Huggingface packages, Pytorch GPU, Flash Attention 2), run:
 
 ```bash
-pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cu118 &&
-pip install -r requirements.txt &&
-pip install flash-attn --no-build-isolation
+conda install pytorch torchvision torchaudio pytorch-cuda=<12.1/11.8> -c pytorch -c nvidia
+
+conda install xformers -c xformers -y
+
+pip install bitsandbytes wandb
+
+pip install "unsloth[conda] @ git+https://github.com/unslothai/unsloth.git"
 ```
 
 I've tested this on a Linux and on WSL 2 (running on Windows 10). Due to Flash Attention 2, BitsAndBytes, and Pytorch compile, you will have a hard time getting it to run on Windows natively so I wouldn't recommend trying. 

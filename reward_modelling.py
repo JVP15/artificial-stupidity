@@ -155,7 +155,9 @@ def main(args):
         output_dir='logs/reward',
         num_train_epochs=1,
         per_device_train_batch_size=args.batch_size,
+        per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
+        eval_accumulation_steps=args.gradient_accumulation_steps,
         gradient_checkpointing=args.gradient_checkpointing,
         gradient_checkpointing_kwargs={'use_reentrant': False},
         torch_compile=args.torch_compile, # with no extra args, compiling seems to be slower on an A100???
@@ -181,6 +183,10 @@ def main(args):
 
     trainer.save_model('models/reward')
 
+    # clean up any leftover torch memory
+
+    torch.cuda.empty_cache()
+
     # evaluate the model on the test set
 
     test_dataset = datasets.load_dataset('nvidia/HelpSteer', split='validation')
@@ -192,7 +198,8 @@ def main(args):
                                           fn_kwargs={'tokenizer': tokenizer},
                                           remove_columns=['chosen', 'rejected'])
 
-    trainer.evaluate(test_tokenized_dataset)
+    evals = trainer.evaluate(test_tokenized_dataset)
+    print(evals)
 
 
 if __name__ == '__main__':
