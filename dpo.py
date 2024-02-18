@@ -53,6 +53,7 @@ python examples/scripts/dpo.py \
     --lora_r=16 \
     --lora_alpha=16
 """
+import os
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
@@ -121,8 +122,10 @@ def get_hh(split: str, sanity_check: bool = False, silent: bool = False, cache_d
             "chosen": sample["rejected"][len(prompt):],
             "rejected": sample["chosen"][len(prompt):],
         }
+    # get the number of CPUs
+    num_cpu = os.cpu_count()
 
-    return dataset.map(split_prompt_and_responses)
+    return dataset.map(split_prompt_and_responses, num_proc=num_cpu)
 
 
 if __name__ == "__main__":
